@@ -51,7 +51,8 @@ def generate():
     topic = data.get('topic')
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        # নতুন কোড (এটি সঠিক)
+model = genai.GenerativeModel('gemini-1.0-pro')
         prompt = f"""
         Act as a Senior Frontend Developer.
         Task: Create a high-quality, modern Landing Page.
