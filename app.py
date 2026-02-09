@@ -3,25 +3,22 @@ import sqlite3
 import random
 import string
 from flask import Flask, render_template, request, jsonify
-import google.generativeai as genai
+import requests  # Hugging Face API এর জন্য
 from dotenv import load_dotenv
 
-# .env ফাইল থেকে গোপন কি লোড করা (লোকাল পিসির জন্য)
 load_dotenv()
 
 app = Flask(__name__)
 
 # ==========================================
-# সিকিউরিটি: API Key এনভায়রনমেন্ট থেকে অটোমেটিক নেবে
+# সিকিউরিটি: Hugging Face API Key এনভায়রনমেন্ট থেকে নেবে
 # ==========================================
-api_key = os.environ.get("GOOGLE_API_KEY")
+HF_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-if not api_key:
-    print("⚠️ WARNING: API Key Missing! Check Environment Variables.")
-else:
-    genai.configure(api_key=api_key)
+# Hugging Face মডেলের এন্ডপয়েন্ট (CodeLlama-7b)
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/codellama/CodeLlama-7b-Instruct-hf"
 
-# ডেটাবেস সেটআপ
+# ডেটাবেস সেটআপ (আগের মতোই)
 def init_db():
     conn = sqlite3.connect('builder.db')
     c = conn.cursor()
@@ -40,37 +37,59 @@ def get_slug():
 def index():
     return render_template('index.html')
 
-# AI কোড জেনারেশন API
+# Hugging Face দিয়ে কোড জেনারেশন API
 @app.route('/api/generate', methods=['POST'])
 def generate():
-    if not api_key:
-        return jsonify({'status': 'error', 'message': 'Server API Key is missing!'})
+    if not HF_API_KEY:
+        return jsonify({'status': 'error', 'message': 'Hugging Face API Key is missing on server!'})
         
     data = request.json
     topic = data.get('topic')
     
+    # আপনার নতুন Key ব্যবহার করে Authorization Header তৈরি
+    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
+    
+    # Hugging Face এর জন্য বিশেষ প্রম্পট
+    hf_prompt = f"""
+    [INST] You are an expert web developer. Create a single-file responsive Landing Page.
+    Topic: {topic}
+    Tech Stack: HTML5, Tailwind CSS (CDN), FontAwesome (CDN).
+    Rules: 
+    1. Modern, clean design. 
+    2. RETURN ONLY the RAW HTML code. Do not use markdown.
+    [/INST]
+    """
+    
     try:
-        # এখানে সঠিক মডেলের নাম ব্যবহার করা হয়েছে এবং Indentation ঠিক আছে
-        model = genai.GenerativeModel('gemini-2.5-flash')
-        prompt = f"""
-        Act as a Senior Frontend Developer.
-        Task: Create a high-quality, modern Landing Page.
-        Topic: {topic}
-        Tech: HTML5, Tailwind CSS (CDN), FontAwesome (CDN).
+        response = requests.post(
+            HF_MODEL_URL,
+            headers=headers,
+            json={
+                "inputs": hf_prompt,
+                "options": {"wait_for_model": True}
+            }
+        )
+        response.raise_for_status() # কোনো HTTP Error হলে এটি Error দেবে
+        result = response.json()
         
-        Design Rules:
-        1. Use gradients, shadows, and rounded corners (Modern UI).
-        2. Make it fully responsive.
-        3. Do NOT use Markdown or explanations. Return ONLY the raw HTML code.
-        """
-        response = model.generate_content(prompt)
-        # কোড ক্লিন করা
-        clean_code = response.text.replace("```html", "").replace("```", "")
+        # আউটপুট থেকে কোড ক্লিন করা
+        full_text = result[0]['generated_text']
+        code_start = full_text.find('<!DOCTYPE html>')
+        
+        if code_start != -1:
+            clean_code = full_text[code_start:]
+        else:
+            # যদি <!DOCTYPE না পায়, তবে পুরো লেখাটি দেবে
+            clean_code = full_text
+            
         return jsonify({'status': 'success', 'code': clean_code})
+    
+    except requests.exceptions.RequestException as e:
+        return jsonify({'status': 'error', 'message': f"API Connection Error: {str(e)}"})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': str(e)})
+        return jsonify({'status': 'error', 'message': f"General Error: {str(e)}"})
 
-# পাবলিশ API
+# পাবলিশ API (কোনো পরিবর্তন নেই)
 @app.route('/api/publish', methods=['POST'])
 def publish():
     data = request.json
@@ -88,7 +107,7 @@ def publish():
     
     return jsonify({'status': 'success', 'url': f"{request.host_url}s/{slug}"})
 
-# লাইভ সাইট ভিউয়ার
+# লাইভ সাইট ভিউয়ার (কোনো পরিবর্তন নেই)
 @app.route('/s/<slug>')
 def view_site(slug):
     conn = sqlite3.connect('builder.db')
