@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NextGen AI Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+        body { font-family: 'Outfit', sans-serif; background-color: #0f172a; color: white; }
+        
+        /* কাস্টম অ্যানিমেশন */
+        .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .gradient-text { background: linear-gradient(to right, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        
+        .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
+        @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        
+        .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #a855f7; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
+        @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden selection:bg-purple-500 selection:text-white">
+
+    <!-- Navbar -->
+    <nav class="border-b border-gray-800 bg-slate-900/50 backdrop-blur-md z-50">
+        <div class="max-w-7xl mx-auto px-6 h-16 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-gradient-to-tr from-purple-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/20">
+                    <i class="fas fa-cube text-white text-lg"></i>
+                </div>
+                <span class="font-bold text-xl tracking-wide">NextGen<span class="text-purple-400">Builder</span></span>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="setMode('manual')" class="text-gray-400 hover:text-white transition text-sm font-medium">Code Editor</button>
+                <button onclick="setMode('ai')" class="bg-white/10 hover:bg-white/20 px-4 py-2 rounded-lg text-sm font-medium transition border border-white/10">AI Generator</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Left Panel (Controls) -->
+        <div class="w-full md:w-[400px] bg-slate-900 border-r border-gray-800 flex flex-col z-20 shadow-2xl">
+            
+            <!-- Tab: AI -->
+            <div id="aiPanel" class="p-6 flex-1 flex flex-col slide-up">
+                <h2 class="text-2xl font-bold mb-2">Create with <span class="gradient-text">Gemini AI</span></h2>
+                <p class="text-slate-400 text-sm mb-6">Describe your dream website and watch the magic happen.</p>
+                
+                <textarea id="prompt" class="w-full h-40 bg-slate-800 border border-gray-700 rounded-xl p-4 text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition resize-none mb-4" placeholder="e.g. A futuristic portfolio for a photographer with dark mode and neon effects..."></textarea>
+                
+                <button onclick="generateSite()" id="genBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 text-white py-4 rounded-xl font-bold shadow-lg shadow-purple-900/50 transition-all hover:scale-[1.02] flex justify-center items-center gap-2 group">
+                    <i class="fas fa-wand-magic-sparkles group-hover:rotate-12 transition"></i> <span>Generate Website</span>
+                </button>
+            </div>
+
+            <!-- Tab: Manual Code (Hidden) -->
+            <div id="codePanel" class="hidden p-0 flex-1 flex flex-col bg-[#1e1e1e]">
+                <div class="bg-[#252526] px-4 py-2 text-xs text-gray-400 flex justify-between">
+                    <span>INDEX.HTML</span>
+                    <button onclick="updatePreview()" class="text-green-400 hover:text-green-300"><i class="fas fa-play"></i> Run</button>
+                </div>
+                <textarea id="codeEditor" class="w-full h-full bg-[#1e1e1e] text-gray-300 p-4 font-mono text-sm outline-none resize-none leading-relaxed" spellcheck="false"></textarea>
+            </div>
+
+            <!-- Bottom Actions -->
+            <div class="p-6 border-t border-gray-800 bg-slate-900">
+                <button onclick="publish()" class="w-full bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-semibold border border-gray-700 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-cloud-upload-alt text-blue-400"></i> Publish to Web
+                </button>
+            </div>
+        </div>
+
+        <!-- Right Panel (Preview) -->
+        <div class="flex-1 bg-black relative">
+            <iframe id="preview" class="w-full h-full border-none bg-white"></iframe>
+            
+            <!-- Loading Overlay -->
+            <div id="loader" class="hidden absolute inset-0 bg-slate-900/90 backdrop-blur-sm z-30 flex flex-col items-center justify-center">
+                <span class="loader mb-6"></span>
+                <h3 class="text-xl font-bold text-white animate-pulse">Designing your website...</h3>
+                <p class="text-slate-400 text-sm mt-2">Writing HTML • Styling CSS • Optimizing</p>
+            </div>
+
+            <!-- Empty State -->
+            <div id="welcome" class="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]">
+                <div class="w-24 h-24 bg-slate-800 rounded-full flex items-center justify-center mb-6 animate-bounce">
+                    <i class="fas fa-code text-4xl text-slate-500"></i>
+                </div>
+                <h1 class="text-4xl font-bold text-slate-200 mb-2">Ready to Build?</h1>
+                <p class="text-slate-500 max-w-md">Select AI Generator to create automatically or Code Editor to write manually.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success Modal -->
+    <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+        <div class="glass rounded-2xl p-8 max-w-md w-full text-center pop-in shadow-2xl shadow-purple-900/20 relative overflow-hidden">
+            <!-- Background Glow -->
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-20"></div>
+            
+            <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-green-500/50">
+                <i class="fas fa-check text-4xl text-green-400"></i>
+            </div>
+            
+            <h2 class="text-3xl font-bold text-white mb-2">Boom! Published!</h2>
+            <p class="text-slate-400 text-sm mb-6">Your website is live and ready to share.</p>
+            
+            <div class="bg-slate-900/50 p-4 rounded-xl border border-white/5 mb-6 flex items-center justify-between group cursor-pointer" onclick="copyLink()">
+                <span id="finalLink" class="text-purple-400 text-sm truncate mr-2 font-mono">...</span>
+                <i class="far fa-copy text-slate-500 group-hover:text-white transition"></i>
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="document.getElementById('modal').classList.add('hidden')" class="py-3 rounded-xl font-bold text-slate-300 hover:bg-white/5 transition">Close</button>
+                <a id="visitBtn" href="#" target="_blank" class="bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 transition shadow-lg shadow-purple-600/30">
+                    Visit Site <i class="fas fa-external-link-alt text-xs"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentCode = "";
+
+        function setMode(mode) {
+            if(mode === 'ai') {
+                document.getElementById('aiPanel').classList.remove('hidden');
+                document.getElementById('codePanel').classList.add('hidden');
+            } else {
+                document.getElementById('aiPanel').classList.add('hidden');
+                document.getElementById('codePanel').classList.remove('hidden');
+                document.getElementById('welcome').classList.add('hidden');
+            }
+        }
+
+        async function generateSite() {
+            const topic = document.getElementById('prompt').value;
+            if(!topic) return alert("Please enter a topic!");
+
+            document.getElementById('loader').classList.remove('hidden');
+            document.getElementById('welcome').classList.add('hidden');
+            
+            try {
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({topic: topic})
+                });
+                const data = await res.json();
+                
+                if(data.status === 'success') {
+                    currentCode = data.code;
+                    document.getElementById('preview').srcdoc = currentCode;
+                    document.getElementById('codeEditor').value = currentCode; // Sync manual editor
+                } else {
+                    alert("Error: " + data.message);
+                }
+            } catch(e) { alert("Server Error!"); }
+            
+            document.getElementById('loader').classList.add('hidden');
+        }
+
+        function updatePreview() {
+            currentCode = document.getElementById('codeEditor').value;
+            document.getElementById('preview').srcdoc = currentCode;
+        }
+
+        async function publish() {
+            if(!currentCode) return alert("No website to publish!");
+            
+            const title = prompt("Enter a name for your website:") || "My Website";
+            
+            const res = await fetch('/api/publish', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({title: title, html: currentCode})
+            });
+            const data = await res.json();
+            
+            if(data.status === 'success') {
+                document.getElementById('finalLink').innerText = data.url;
+                document.getElementById('visitBtn').href = data.url;
+                document.getElementById('modal').classList.remove('hidden');
+            }
+        }
+
+        function copyLink() {
+            const text = document.getElementById('finalLink').innerText;
+            navigator.clipboard.writeText(text);
+            alert("Link copied to clipboard!");
+        }
+    </script>
+</body>
+</html>
