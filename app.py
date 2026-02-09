@@ -6,7 +6,7 @@ from flask import Flask, render_template, request, jsonify
 import google.generativeai as genai
 from dotenv import load_dotenv
 
-# লোকাল এনভায়রনমেন্ট লোড করা
+# .env ফাইল থেকে গোপন কি লোড করা (লোকাল পিসির জন্য)
 load_dotenv()
 
 app = Flask(__name__)
@@ -32,8 +32,7 @@ def init_db():
 
 init_db()
 
-# র‍্যান্ডম লিঙ্ক জেনারেটর
-def generate_slug():
+def get_slug():
     chars = string.ascii_lowercase + string.digits
     return ''.join(random.choice(chars) for _ in range(7))
 
@@ -51,8 +50,8 @@ def generate():
     topic = data.get('topic')
     
     try:
-        # নতুন কোড (এটি সঠিক)
-model = genai.GenerativeModel('gemini-1.0-pro')
+        # এখানে সঠিক মডেলের নাম ব্যবহার করা হয়েছে এবং Indentation ঠিক আছে
+        model = genai.GenerativeModel('gemini-1.0-pro')
         prompt = f"""
         Act as a Senior Frontend Developer.
         Task: Create a high-quality, modern Landing Page.
@@ -78,8 +77,7 @@ def publish():
     title = data.get('title') or "Untitled Project"
     html = data.get('html')
     
-    slug = f"{title.lower().replace(' ', '-')}-{generate_slug()}"
-    # ক্লিন স্লাগ
+    slug = f"{title.lower().replace(' ', '-')[:20]}-{get_slug()}"
     slug = "".join(c for c in slug if c.isalnum() or c == "-")
 
     conn = sqlite3.connect('builder.db')
