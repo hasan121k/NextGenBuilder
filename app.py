@@ -4,10 +4,9 @@ import random
 import string
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient # Hugging Face Client এর জন্য
+from huggingface_hub import InferenceClient
 import requests
 
-# .env ফাইল থেকে গোপন কি লোড করা (লোকাল ব্যবহারের জন্য)
 load_dotenv()
 
 app = Flask(__name__)
@@ -17,13 +16,12 @@ app = Flask(__name__)
 # ==========================================
 HF_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-# সঠিক কোড জেনারেশন মডেল (টেক্সট-জেনারেশন সাপোর্ট করে)
-MODEL_NAME = "codellama/CodeLlama-7b-Instruct-hf" 
+# Mistral-7B মডেল: হালকা, দ্রুত এবং শক্তিশালী (এইটি কাজ করবেই)
+MODEL_NAME = "mistralai/Mistral-7B-Instruct-v0.2" 
 
 # InferenceClient ইনিশিয়ালাইজ
 if HF_API_KEY:
     try:
-        # ক্লায়েন্ট ইনিশিয়ালাইজ করার সময় মডেলের নাম উল্লেখ করা হয়েছে
         hf_client = InferenceClient(
             model=MODEL_NAME,
             token=HF_API_KEY
@@ -57,7 +55,7 @@ def index():
 @app.route('/api/generate', methods=['POST'])
 def generate():
     if not hf_client:
-        return jsonify({'status': 'error', 'message': 'API Client not initialized (API Key Missing or Invalid)'})
+        return jsonify({'status': 'error', 'message': 'Inference Client not initialized (API Key Missing or Invalid)'})
         
     data = request.json
     topic = data.get('topic')
@@ -77,7 +75,7 @@ def generate():
         # Client ব্যবহার করে কোড জেনারেট করা
         response = hf_client.text_generation(
             hf_prompt,
-            model=MODEL_NAME,  # <--- মডেলের নাম স্পষ্টভাবে উল্লেখ করা হয়েছে
+            model=MODEL_NAME, 
             max_new_tokens=2048,
             return_full_text=False
         )
