@@ -51,7 +51,7 @@ def generate():
     
     try:
         # এখানে সঠিক মডেলের নাম ব্যবহার করা হয়েছে এবং Indentation ঠিক আছে
-        model = genai.GenerativeModel('gemini-1.0-pro')
+        model = genai.GenerativeModel('gemini-2.5-flash')
         prompt = f"""
         Act as a Senior Frontend Developer.
         Task: Create a high-quality, modern Landing Page.
