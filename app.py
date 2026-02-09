@@ -15,10 +15,10 @@ app = Flask(__name__)
 # ==========================================
 HF_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-# Hugging Face মডেলের এন্ডপয়েন্ট (CodeLlama-7b)
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/codellama/CodeLlama-7b-Instruct-hf"
+# WizardCoder মডেলের এন্ডপয়েন্ট (নতুন এবং সচল মডেল)
+HF_MODEL_URL = "https://api-inference.huggingface.co/models/WizardLM/WizardCoder-Python-7B-V1.0"
 
-# ডেটাবেস সেটআপ (আগের মতোই)
+# ডেটাবেস সেটআপ
 def init_db():
     conn = sqlite3.connect('builder.db')
     c = conn.cursor()
@@ -46,7 +46,6 @@ def generate():
     data = request.json
     topic = data.get('topic')
     
-    # আপনার নতুন Key ব্যবহার করে Authorization Header তৈরি
     headers = {"Authorization": f"Bearer {HF_API_KEY}"}
     
     # Hugging Face এর জন্য বিশেষ প্রম্পট
@@ -74,6 +73,8 @@ def generate():
         
         # আউটপুট থেকে কোড ক্লিন করা
         full_text = result[0]['generated_text']
+        
+        # প্রম্পটের পর থেকে কোড নেওয়া
         code_start = full_text.find('<!DOCTYPE html>')
         
         if code_start != -1:
@@ -89,7 +90,7 @@ def generate():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f"General Error: {str(e)}"})
 
-# পাবলিশ API (কোনো পরিবর্তন নেই)
+# পাবলিশ API
 @app.route('/api/publish', methods=['POST'])
 def publish():
     data = request.json
@@ -107,7 +108,7 @@ def publish():
     
     return jsonify({'status': 'success', 'url': f"{request.host_url}s/{slug}"})
 
-# লাইভ সাইট ভিউয়ার (কোনো পরিবর্তন নেই)
+# লাইভ সাইট ভিউয়ার
 @app.route('/s/<slug>')
 def view_site(slug):
     conn = sqlite3.connect('builder.db')
