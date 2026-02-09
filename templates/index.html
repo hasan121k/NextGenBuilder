@@ -9,17 +9,12 @@
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
         body { font-family: 'Outfit', sans-serif; background-color: #0f172a; color: white; }
-        
-        /* কাস্টম অ্যানিমেশন */
         .glass { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.1); }
         .gradient-text { background: linear-gradient(to right, #a855f7, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
-        
         .slide-up { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1); }
         @keyframes slideUp { from { transform: translateY(40px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-
         .pop-in { animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         @keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        
         .loader { width: 48px; height: 48px; border: 5px solid #FFF; border-bottom-color: #a855f7; border-radius: 50%; display: inline-block; box-sizing: border-box; animation: rotation 1s linear infinite; }
         @keyframes rotation { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
@@ -50,7 +45,7 @@
             
             <!-- Tab: AI -->
             <div id="aiPanel" class="p-6 flex-1 flex flex-col slide-up">
-                <h2 class="text-2xl font-bold mb-2">Create with <span class="gradient-text">Gemini AI</span></h2>
+                <h2 class="text-2xl font-bold mb-2">Create with <span class="gradient-text">HuggingFace AI</span></h2>
                 <p class="text-slate-400 text-sm mb-6">Describe your dream website and watch the magic happen.</p>
                 
                 <textarea id="prompt" class="w-full h-40 bg-slate-800 border border-gray-700 rounded-xl p-4 text-gray-200 focus:outline-none focus:ring-2 focus:ring-purple-500 transition resize-none mb-4" placeholder="e.g. A futuristic portfolio for a photographer with dark mode and neon effects..."></textarea>
@@ -102,7 +97,6 @@
     <!-- Success Modal -->
     <div id="modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
         <div class="glass rounded-2xl p-8 max-w-md w-full text-center pop-in shadow-2xl shadow-purple-900/20 relative overflow-hidden">
-            <!-- Background Glow -->
             <div class="absolute -top-10 -right-10 w-32 h-32 bg-purple-500 rounded-full blur-[60px] opacity-20"></div>
             
             <div class="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 ring-1 ring-green-500/50">
@@ -127,8 +121,6 @@
     </div>
 
     <script>
-        let currentCode = "";
-
         function setMode(mode) {
             if(mode === 'ai') {
                 document.getElementById('aiPanel').classList.remove('hidden');
@@ -156,9 +148,8 @@
                 const data = await res.json();
                 
                 if(data.status === 'success') {
-                    currentCode = data.code;
-                    document.getElementById('preview').srcdoc = currentCode;
-                    document.getElementById('codeEditor').value = currentCode; // Sync manual editor
+                    document.getElementById('codeEditor').value = data.code;
+                    document.getElementById('preview').srcdoc = data.code;
                 } else {
                     alert("Error: " + data.message);
                 }
@@ -168,19 +159,21 @@
         }
 
         function updatePreview() {
-            currentCode = document.getElementById('codeEditor').value;
-            document.getElementById('preview').srcdoc = currentCode;
+            const code = document.getElementById('codeEditor').value;
+            document.getElementById('preview').srcdoc = code;
         }
 
         async function publish() {
-            if(!currentCode) return alert("No website to publish!");
+            const code = document.getElementById('codeEditor').value;
+            if(!code || code.length < 10) return alert("Please generate or enter code first!");
             
             const title = prompt("Enter a name for your website:") || "My Website";
-            
+            if (!title) return;
+
             const res = await fetch('/api/publish', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({title: title, html: currentCode})
+                body: JSON.stringify({title: title, html: code})
             });
             const data = await res.json();
             
