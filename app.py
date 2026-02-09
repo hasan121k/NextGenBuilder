@@ -4,25 +4,26 @@ import random
 import string
 from flask import Flask, render_template, request, jsonify
 from dotenv import load_dotenv
-from huggingface_hub import InferenceClient # <-- নতুন
+from huggingface_hub import InferenceClient # Hugging Face Client এর জন্য
 import requests
 
+# .env ফাইল থেকে গোপন কি লোড করা (লোকাল ব্যবহারের জন্য)
 load_dotenv()
 
 app = Flask(__name__)
 
 # ==========================================
-# API Key এনভায়রনমেন্ট থেকে নেবে
+# সিকিউরিটি: Hugging Face API Key এনভায়রনমেন্ট থেকে নেবে
 # ==========================================
 HF_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-# Code Generation এর জন্য নতুন এবং স্থিতিশীল মডেল
-# এটি Client এর মাধ্যমে ব্যবহার হবে।
-MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta" 
+# সঠিক কোড জেনারেশন মডেল (টেক্সট-জেনারেশন সাপোর্ট করে)
+MODEL_NAME = "codellama/CodeLlama-7b-Instruct-hf" 
 
 # InferenceClient ইনিশিয়ালাইজ
 if HF_API_KEY:
     try:
+        # ক্লায়েন্ট ইনিশিয়ালাইজ করার সময় মডেলের নাম উল্লেখ করা হয়েছে
         hf_client = InferenceClient(
             model=MODEL_NAME,
             token=HF_API_KEY
@@ -56,7 +57,7 @@ def index():
 @app.route('/api/generate', methods=['POST'])
 def generate():
     if not hf_client:
-        return jsonify({'status': 'error', 'message': 'Hugging Face Client not initialized (API Key Missing or Invalid)'})
+        return jsonify({'status': 'error', 'message': 'API Client not initialized (API Key Missing or Invalid)'})
         
     data = request.json
     topic = data.get('topic')
@@ -76,6 +77,7 @@ def generate():
         # Client ব্যবহার করে কোড জেনারেট করা
         response = hf_client.text_generation(
             hf_prompt,
+            model=MODEL_NAME,  # <--- মডেলের নাম স্পষ্টভাবে উল্লেখ করা হয়েছে
             max_new_tokens=2048,
             return_full_text=False
         )
@@ -94,9 +96,9 @@ def generate():
     
     except Exception as e:
         # সমস্ত Error হ্যান্ডেল করবে
-        return jsonify({'status': 'error', 'message': f"Inference Client Error: {str(e)}"})
+        return jsonify({'status': 'error', 'message': f"Inference Error: {str(e)}"})
 
-# পাবলিশ API (কোনো পরিবর্তন নেই)
+# পাবলিশ API
 @app.route('/api/publish', methods=['POST'])
 def publish():
     data = request.json
@@ -114,7 +116,7 @@ def publish():
     
     return jsonify({'status': 'success', 'url': f"{request.host_url}s/{slug}"})
 
-# লাইভ সাইট ভিউয়ার (কোনো পরিবর্তন নেই)
+# লাইভ সাইট ভিউয়ার
 @app.route('/s/<slug>')
 def view_site(slug):
     conn = sqlite3.connect('builder.db')
