@@ -3,20 +3,35 @@ import sqlite3
 import random
 import string
 from flask import Flask, render_template, request, jsonify
-import requests  # Hugging Face API এর জন্য
 from dotenv import load_dotenv
+from huggingface_hub import InferenceClient # <-- নতুন
+import requests
 
 load_dotenv()
 
 app = Flask(__name__)
 
 # ==========================================
-# সিকিউরিটি: Hugging Face API Key এনভায়রনমেন্ট থেকে নেবে
+# API Key এনভায়রনমেন্ট থেকে নেবে
 # ==========================================
 HF_API_KEY = os.environ.get("HUGGINGFACE_API_KEY")
 
-# WizardCoder মডেলের এন্ডপয়েন্ট (নতুন এবং সচল মডেল)
-HF_MODEL_URL = "https://api-inference.huggingface.co/models/WizardLM/WizardCoder-Python-7B-V1.0"
+# Code Generation এর জন্য নতুন এবং স্থিতিশীল মডেল
+# এটি Client এর মাধ্যমে ব্যবহার হবে।
+MODEL_NAME = "HuggingFaceH4/zephyr-7b-beta" 
+
+# InferenceClient ইনিশিয়ালাইজ
+if HF_API_KEY:
+    try:
+        hf_client = InferenceClient(
+            model=MODEL_NAME,
+            token=HF_API_KEY
+        )
+    except Exception as e:
+        print(f"Error initializing HF Client: {e}")
+        hf_client = None
+else:
+    hf_client = None
 
 # ডেটাবেস সেটআপ
 def init_db():
@@ -37,18 +52,16 @@ def get_slug():
 def index():
     return render_template('index.html')
 
-# Hugging Face দিয়ে কোড জেনারেশন API
+# Hugging Face Client দিয়ে কোড জেনারেশন API
 @app.route('/api/generate', methods=['POST'])
 def generate():
-    if not HF_API_KEY:
-        return jsonify({'status': 'error', 'message': 'Hugging Face API Key is missing on server!'})
+    if not hf_client:
+        return jsonify({'status': 'error', 'message': 'Hugging Face Client not initialized (API Key Missing or Invalid)'})
         
     data = request.json
     topic = data.get('topic')
     
-    headers = {"Authorization": f"Bearer {HF_API_KEY}"}
-    
-    # Hugging Face এর জন্য বিশেষ প্রম্পট
+    # Client ব্যবহারের জন্য প্রম্পট
     hf_prompt = f"""
     [INST] You are an expert web developer. Create a single-file responsive Landing Page.
     Topic: {topic}
@@ -60,37 +73,30 @@ def generate():
     """
     
     try:
-        response = requests.post(
-            HF_MODEL_URL,
-            headers=headers,
-            json={
-                "inputs": hf_prompt,
-                "options": {"wait_for_model": True}
-            }
+        # Client ব্যবহার করে কোড জেনারেট করা
+        response = hf_client.text_generation(
+            hf_prompt,
+            max_new_tokens=2048,
+            return_full_text=False
         )
-        response.raise_for_status() # কোনো HTTP Error হলে এটি Error দেবে
-        result = response.json()
+        
+        full_text = response.strip()
         
         # আউটপুট থেকে কোড ক্লিন করা
-        full_text = result[0]['generated_text']
-        
-        # প্রম্পটের পর থেকে কোড নেওয়া
         code_start = full_text.find('<!DOCTYPE html>')
         
         if code_start != -1:
             clean_code = full_text[code_start:]
         else:
-            # যদি <!DOCTYPE না পায়, তবে পুরো লেখাটি দেবে
             clean_code = full_text
             
         return jsonify({'status': 'success', 'code': clean_code})
     
-    except requests.exceptions.RequestException as e:
-        return jsonify({'status': 'error', 'message': f"API Connection Error: {str(e)}"})
     except Exception as e:
-        return jsonify({'status': 'error', 'message': f"General Error: {str(e)}"})
+        # সমস্ত Error হ্যান্ডেল করবে
+        return jsonify({'status': 'error', 'message': f"Inference Client Error: {str(e)}"})
 
-# পাবলিশ API
+# পাবলিশ API (কোনো পরিবর্তন নেই)
 @app.route('/api/publish', methods=['POST'])
 def publish():
     data = request.json
@@ -108,7 +114,7 @@ def publish():
     
     return jsonify({'status': 'success', 'url': f"{request.host_url}s/{slug}"})
 
-# লাইভ সাইট ভিউয়ার
+# লাইভ সাইট ভিউয়ার (কোনো পরিবর্তন নেই)
 @app.route('/s/<slug>')
 def view_site(slug):
     conn = sqlite3.connect('builder.db')
